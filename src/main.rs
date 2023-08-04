@@ -1,44 +1,86 @@
 use nalgebra::*;
+use rustfft::{num_complex::Complex, FftPlanner};
+#[allow(unused_imports)]
+use std::{f64::consts::PI, time::Instant};
 
-fn main() {
-    let prn = gen_prn(1, true);
-    println!("{}",prn.fixed_rows::<10>(0));
+fn main() {}
+
+pub fn linspace<T: Copy + Into<f64>>(start: T, end: T, n: usize) -> DVector<f64> {
+    let start_f64 = start.into();
+    let end_f64 = end.into();
+
+    let values: Vec<f64> = (0..n)
+        .map(|i| start_f64 + (end_f64 - start_f64) * (i as f64) / (n as f64 - 1.0))
+        .collect();
+
+    DVector::from_vec(values)
+}
+
+#[allow(dead_code)]
+fn interp_n_points<T: Copy + Into<f64>>(
+    x: &DVector<T>,
+    y: &DVector<T>,
+    n: usize,
+) -> (DVector<f64>, DVector<f64>) {
+    let xi: DVector<f64> = DVector::from_vec(
+        (0..n)
+            .map(|i| {
+                x[0].into() + (x[x.len() - 1].into() - x[0].into()) * (i as f64) / (n as f64 - 1.0)
+            })
+            .collect(),
+    );
+    let yi: DVector<f64> = DVector::from_vec(xi.iter().map(|&xi| nn_interp(x, y, xi)).collect());
+    (xi, yi)
+}
+
+pub fn nn_interp<T: Copy + Into<f64>>(x: &DVector<T>, y: &DVector<T>, xi: f64) -> f64 {
+    // good enough for prn interpolation
+    // Find the closest value in 'x' to 'xi'
+    let closest_idx = (0..x.len())
+        .min_by(|&i, &j| {
+            let dist_i: f64 = (x[i].into() - xi).abs();
+            let dist_j: f64 = (x[j].into() - xi).abs();
+            dist_i
+                .partial_cmp(&dist_j)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .unwrap();
+
+    y[closest_idx].into()
 }
 
 #[allow(unused_variables)]
 pub fn gold_gen(ic: DVector<i32>, taps: Vec<usize>) -> DMatrix<i32> {
-
     let n = ic.len();
     let num = 2_i32.pow(n as u32) - 1;
 
-    let mut g: DMatrix<i32> = DMatrix::zeros(num as usize,n);
-    g.set_row(0,&ic.transpose());
-    
-    for i in 0..(num-1) as usize {
+    let mut g: DMatrix<i32> = DMatrix::zeros(num as usize, n);
+    g.set_row(0, &ic.transpose());
 
-        let mut temp_val = g[(i,taps[0]-1)];
+    for i in 0..(num - 1) as usize {
+        let mut temp_val = g[(i, taps[0] - 1)];
         for j in 1..taps.len() {
-            temp_val = temp_val ^ g[(i,taps[j]-1)];
+            temp_val = temp_val ^ g[(i, taps[j] - 1)];
         }
-        let temp_row = g.fixed_view::<1,9>(i,0).clone_owned();
-        g.fixed_view_mut::<1,9>(i+1,1).copy_from(&temp_row);
-        g[(i+1,0)] = temp_val;
+        let temp_row = g.fixed_view::<1, 9>(i, 0).clone_owned();
+        g.fixed_view_mut::<1, 9>(i + 1, 1).copy_from(&temp_row);
+        g[(i + 1, 0)] = temp_val;
     }
     g
 }
 
 pub fn bpsk_map(vector: &mut DVector<i32>) {
-    for i in 0..vector.len(){
-        vector[i] = if vector[i] == 0 {1} else {-1};
+    for i in 0..vector.len() {
+        vector[i] = if vector[i] == 0 { 1 } else { -1 };
     }
 }
 
 pub fn cycle_add(g1: DVector<i32>, g2: DMatrix<i32>, prn_taps: Vec<usize>) -> DVector<i32> {
     let mut s = g1.clone_owned();
     for i in 0..g1.len() {
-        let mut temp = g2[(i,prn_taps[0]-1)];
+        let mut temp = g2[(i, prn_taps[0] - 1)];
         for j in 1..prn_taps.len() {
-            temp = temp ^ g2[(i,prn_taps[j]-1)];
+            temp = temp ^ g2[(i, prn_taps[j] - 1)];
         }
         s[i] = g1[i] ^ temp;
     }
@@ -46,25 +88,116 @@ pub fn cycle_add(g1: DVector<i32>, g2: DMatrix<i32>, prn_taps: Vec<usize>) -> DV
 }
 
 pub fn gen_prn(prn_num: usize, bpsk_flag: bool) -> DVector<i32> {
+    let prn_lib = [
+        vec![2, 6],
+        vec![3, 7],
+        vec![4, 8],
+        vec![5, 9],
+        vec![1, 9],
+        vec![2, 10],
+        vec![1, 8],
+        vec![2, 9],
+        vec![3, 10],
+        vec![2, 3],
+        vec![3, 4],
+        vec![5, 6],
+        vec![6, 7],
+        vec![7, 8],
+        vec![8, 9],
+        vec![9, 10],
+        vec![1, 4],
+        vec![2, 5],
+        vec![3, 6],
+        vec![4, 7],
+        vec![5, 8],
+        vec![6, 9],
+        vec![1, 3],
+        vec![4, 6],
+        vec![5, 7],
+        vec![6, 8],
+        vec![7, 9],
+        vec![8, 10],
+        vec![1, 6],
+        vec![2, 7],
+        vec![3, 8],
+        vec![4, 9],
+        vec![5, 10],
+        vec![4, 10],
+        vec![1, 7],
+        vec![2, 8],
+    ];
 
-    let prn_lib = [vec![2, 6], vec![3, 7], vec![4, 8], vec![5, 9], vec![1, 9], vec![2, 10],
-        vec![1, 8], vec![2, 9], vec![3, 10], vec![2, 3], vec![3, 4], vec![5, 6], vec![6, 7], 
-        vec![7, 8], vec![8, 9], vec![9, 10], vec![1, 4], vec![2, 5], vec![3, 6], vec![4, 7], 
-        vec![5, 8], vec![6, 9], vec![1, 3], vec![4, 6], vec![5, 7], vec![6, 8], vec![7, 9], 
-        vec![8, 10], vec![1, 6], vec![2, 7], vec![3, 8], vec![4, 9], vec![5, 10], vec![4, 10],
-        vec![1, 7], vec![2, 8]];
+    let prn_taps = prn_lib[prn_num - 1].clone();
+    let g1_taps = vec![3, 10];
+    let g2_taps = vec![2, 3, 6, 8, 9, 10];
+    let ic = DVector::from(vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
 
-    let prn_taps = prn_lib[prn_num-1].clone();
-    let g1_taps = vec![3,10]; 
-    let g2_taps = vec![2,3,6,8,9,10];
-    let ic = DVector::from(vec![1,1,1,1,1,1,1,1,1,1]);
-    
-    let g1 = gold_gen(ic.clone(),g1_taps);
-    let g2 = gold_gen(ic.clone(),g2_taps);
+    let g1 = gold_gen(ic.clone(), g1_taps);
+    let g2 = gold_gen(ic.clone(), g2_taps);
     let g1 = g1.column(9).clone_owned();
 
-    let mut prn_code = cycle_add(g1,g2,prn_taps);
-    if bpsk_flag {bpsk_map(&mut prn_code)};
+    let mut prn_code = cycle_add(g1, g2, prn_taps);
+    if bpsk_flag {
+        bpsk_map(&mut prn_code)
+    };
 
     prn_code
+}
+
+#[allow(non_snake_case)]
+pub fn circ_corr<T: Copy + Into<f64>>(
+    x: &DVector<T>,
+    y: &DVector<T>,
+    ts: f64,
+) -> (DVector<f64>, DVector<f64>) {
+    let n = x.len();
+
+    assert_eq!(n, y.len(), "Input vectors must have the same length");
+
+    let x: Vec<Complex<f64>> = x
+        .iter()
+        .map(|&value| Complex::new(value.into(), 0.0)) // put x into a complex vector
+        .collect();
+    let y: Vec<Complex<f64>> = y
+        .iter()
+        .map(|&value| Complex::new(value.into(), 0.0)) // put y into a complex vector
+        .collect();
+
+    // init fft
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(n);
+
+    // fft for x and y
+    let mut X = x.clone();
+    let mut Y = y.clone();
+    // take fft of vectors
+    fft.process(&mut X);
+    fft.process(&mut Y);
+
+    // Conjugate of Y
+    let Y_conj: Vec<Complex<f64>> = Y.iter().map(|&value| value.conj()).collect();
+
+    // element-wise multiplication
+    let FTX = X
+        .iter() // iterate over x
+        .zip(Y_conj.iter()) // iterate over y
+        .map(|(&x, &y)| x * y) // multiply elements of x and y
+        .collect::<Vec<_>>(); // collect into a vector
+
+    // init ifft
+    let ifft = planner.plan_fft_inverse(n);
+    let mut R: Vec<Complex<f64>> = FTX;
+    // take ifft into R
+    ifft.process(&mut R);
+
+    // Extract real values and normalize
+    let R: Vec<f64> = R.iter().map(|&value| value.re / n as f64).collect();
+    let R = DVector::from_vec(R);
+
+    let mut lag = DVector::zeros(n);
+    for i in 0..n {
+        lag[i] = (i as i32 - (n / 2) as i32) as f64 * ts;
+    }
+
+    (R, lag)
 }
