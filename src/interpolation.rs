@@ -1,7 +1,9 @@
+use std::f64::consts::PI;
+
 use nalgebra::*;
 
 #[allow(dead_code)]
-fn interp_n_points<T: Copy + Into<f64>>(
+pub fn interp_n_points<T: Copy + Into<f64>>(
     x: &DVector<T>,
     y: &DVector<T>,
     n: usize,
@@ -13,10 +15,11 @@ fn interp_n_points<T: Copy + Into<f64>>(
             })
             .collect(),
     );
-    let yi: DVector<f64> = DVector::from_vec(xi.iter().map(|&xi| nn_interp(x, y, xi)).collect());
+    let yi: DVector<f64> = DVector::from_vec(xi.iter().map(|&xi| prev_interp(x, y, xi)).collect());
     (xi, yi)
 }
 
+#[allow(dead_code)]
 pub fn nn_interp<T: Copy + Into<f64>>(x: &DVector<T>, y: &DVector<T>, xi: f64) -> f64 {
     // good enough for prn interpolation
     // Find the closest value in 'x' to 'xi'
@@ -33,6 +36,22 @@ pub fn nn_interp<T: Copy + Into<f64>>(x: &DVector<T>, y: &DVector<T>, xi: f64) -
     y[closest_idx].into()
 }
 
+pub fn prev_interp<T: Copy + Into<f64>>(x: &DVector<T>, y: &DVector<T>, xi: f64) -> f64 {
+    if xi <= x[0].into() {
+        return y[0].into();
+    }
+
+    for i in 1..x.len() {
+        if xi < x[i].into() {
+            return y[i - 1].into();
+        } else if (xi - x[i - 1].into()).abs() < f64::EPSILON {
+            return y[i - 1].into();
+        }
+    }
+
+    y[x.len() - 1].into()
+}
+
 #[allow(dead_code)]
 pub fn linspace<T: Copy + Into<f64>>(start: T, end: T, n: usize) -> DVector<f64> {
     let start_f64 = start.into();
@@ -43,4 +62,58 @@ pub fn linspace<T: Copy + Into<f64>>(start: T, end: T, n: usize) -> DVector<f64>
         .collect();
 
     DVector::from_vec(values)
+}
+
+#[allow(dead_code)]
+pub fn range_vec<T: Copy + Into<f64>>(start: T, end: T, step: T) -> DVector<f64> {
+    let mut step_val = step.into();
+    if end.into() < start.into() {
+        step_val = -step_val;
+    }
+    let mut values = Vec::new();
+    let mut val = start.into();
+    let end_val: f64 = end.into();
+
+    while val <= end_val {
+        values.push(val);
+        val += step_val;
+    }
+
+    DVector::from_vec(values)
+}
+
+#[allow(non_snake_case)]
+pub fn interp_I(
+    carrier: f64,
+    doppler_value: f64,
+    time: &DVector<f64>,
+    interp_prn: &DVector<f64>,
+) -> DVector<f64> {
+    let factor = 2.0 * PI * (carrier + doppler_value);
+
+    let result: Vec<f64> = time
+        .iter()
+        .zip(interp_prn.iter())
+        .map(|(&t, &prn)| (factor * t).cos() * prn)
+        .collect();
+
+    DVector::from_vec(result)
+}
+
+#[allow(non_snake_case)]
+pub fn interp_Q(
+    carrier: f64,
+    doppler_value: f64,
+    time: &DVector<f64>,
+    interp_prn: &DVector<f64>,
+) -> DVector<f64> {
+    let factor = 2.0 * PI * (carrier + doppler_value);
+
+    let result: Vec<f64> = time
+        .iter()
+        .zip(interp_prn.iter())
+        .map(|(&t, &prn)| (factor * t).sin() * prn)
+        .collect();
+
+    DVector::from_vec(result)
 }

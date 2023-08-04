@@ -111,48 +111,44 @@ pub fn circ_corr<T: Copy + Into<f64>>(
 
     let x: Vec<Complex<f64>> = x
         .iter()
-        .map(|&value| Complex::new(value.into(), 0.0)) // put x into a complex vector
+        .map(|&value| Complex::new(value.into(), 0.0))
         .collect();
     let y: Vec<Complex<f64>> = y
         .iter()
-        .map(|&value| Complex::new(value.into(), 0.0)) // put y into a complex vector
+        .map(|&value| Complex::new(value.into(), 0.0))
         .collect();
 
-    // init fft
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(n);
 
-    // fft for x and y
     let mut X = x.clone();
     let mut Y = y.clone();
-    // take fft of vectors
     fft.process(&mut X);
     fft.process(&mut Y);
 
-    // Conjugate of Y
     let Y_conj: Vec<Complex<f64>> = Y.iter().map(|&value| value.conj()).collect();
 
-    // element-wise multiplication
     let FTX = X
-        .iter() // iterate over x
-        .zip(Y_conj.iter()) // iterate over y
-        .map(|(&x, &y)| x * y) // multiply elements of x and y
-        .collect::<Vec<_>>(); // collect into a vector
+        .iter()
+        .zip(Y_conj.iter())
+        .map(|(&x, &y)| x * y)
+        .collect::<Vec<_>>();
 
-    // init ifft
     let ifft = planner.plan_fft_inverse(n);
     let mut R: Vec<Complex<f64>> = FTX;
-    // take ifft into R
     ifft.process(&mut R);
 
-    // Extract real values and normalize
-    let R: Vec<f64> = R.iter().map(|&value| value.re / n as f64).collect();
-    let R = DVector::from_vec(R);
+    // Apply fftshift
+    let half_n = n / 2;
+    let R_shifted = [&R[half_n..], &R[..half_n]].concat();
+
+    let R: Vec<f64> = R_shifted.iter().map(|&value| value.re / n as f64).collect();
+    let mut R = DVector::from_vec(R);
 
     let mut lag = DVector::zeros(n);
     for i in 0..n {
         lag[i] = (i as i32 - (n / 2) as i32) as f64 * ts;
     }
-
+    R /= R.len() as f64;
     (R, lag)
 }
