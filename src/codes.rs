@@ -42,7 +42,10 @@ pub fn cycle_add(g1: DVector<i32>, g2: DMatrix<i32>, prn_taps: Vec<usize>) -> DV
 }
 
 #[allow(dead_code)]
-pub fn gen_prn(prn_num: usize, bpsk_flag: bool, length: usize) -> DVector<i32> {
+pub fn gen_prn(prn_num: usize, bpsk_flag: bool, length: usize, epoch: isize) -> DVector<i32> {
+    // positive epoch shifts the code left (leading)
+    // negative epoch shifts the code right (lag/delay)
+
     let prn_lib = [
         vec![2, 6],
         vec![3, 7],
@@ -96,19 +99,25 @@ pub fn gen_prn(prn_num: usize, bpsk_flag: bool, length: usize) -> DVector<i32> {
         bpsk_map(&mut prn_code)
     };
 
-    if length < 1023 {
-        prn_code
-    } else {
-        // convert to a Vec<i32> for the use of .cycle()
-        let prn_code_vec: Vec<i32> = prn_code.iter().copied().collect();
-        // create an infinite repeating iterator, take the needed elements, and collect back to a Vec
-        let repeated_prn_code_vec: Vec<i32> =
-            prn_code_vec.into_iter().cycle().take(length).collect();
-        // convert back to a DVector<i32>
-        let repeated_prn_code = DVector::from_vec(repeated_prn_code_vec);
+    // Start index calculated with modulo operation to handle negative shifts correctly
+    let start = ((epoch % 1023) + 1023) % 1023;
 
-        repeated_prn_code
+    if length <= 1023 && start == 0 {
+        return prn_code;
     }
+    // Convert to Vec<i32> for the use of rotating
+    let mut prn_code_vec: Vec<i32> = prn_code.iter().copied().collect();
+
+    // Rotate the prn_code_vec
+    prn_code_vec.rotate_left(start as usize);
+
+    // Create the output vector with the required length, repeating the PRN code if necessary
+    let mut output_code = DVector::zeros(length);
+    for i in 0..length {
+        output_code[i] = prn_code_vec[i % 1023];
+    }
+
+    output_code
 }
 
 #[allow(non_snake_case, dead_code)]

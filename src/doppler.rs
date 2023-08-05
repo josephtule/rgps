@@ -12,7 +12,7 @@ pub fn correlation_magnitude(
     carrier_freq: f64,
     time: DVector<f64>,
 ) -> DMatrix<f64> {
-    let prn_code = gen_prn(prn_number, true, 1023).map(|val| val as f64);
+    let prn_code = gen_prn(prn_number, true, 1023, 0).map(|val| val as f64);
     let temp = linspace(1., 1023., 1023);
     let (_, prn_code_interp) = interp_n_points(&temp, &prn_code, time.len());
 

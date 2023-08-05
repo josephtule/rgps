@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use nalgebra::*;
 
 #[allow(dead_code)]
