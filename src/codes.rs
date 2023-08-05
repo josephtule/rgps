@@ -1,7 +1,6 @@
 use nalgebra::*;
 use rustfft::{num_complex::Complex, FftPlanner};
 
-#[allow(dead_code)]
 pub fn gold_gen(ic: DVector<i32>, taps: Vec<usize>) -> DMatrix<i32> {
     let n = ic.len();
     let num = 2_i32.pow(n as u32) - 1;
@@ -21,14 +20,12 @@ pub fn gold_gen(ic: DVector<i32>, taps: Vec<usize>) -> DMatrix<i32> {
     g
 }
 
-#[allow(dead_code)]
 pub fn bpsk_map(vector: &mut DVector<i32>) {
     for i in 0..vector.len() {
         vector[i] = if vector[i] == 0 { 1 } else { -1 };
     }
 }
 
-#[allow(dead_code)]
 pub fn cycle_add(g1: DVector<i32>, g2: DMatrix<i32>, prn_taps: Vec<usize>) -> DVector<i32> {
     let mut s = g1.clone_owned();
     for i in 0..g1.len() {
@@ -41,7 +38,6 @@ pub fn cycle_add(g1: DVector<i32>, g2: DMatrix<i32>, prn_taps: Vec<usize>) -> DV
     s
 }
 
-#[allow(dead_code)]
 pub fn gen_prn(prn_num: usize, bpsk_flag: bool, length: usize, epoch: isize) -> DVector<i32> {
     // positive epoch shifts the code left (leading)
     // negative epoch shifts the code right (lag/delay)
@@ -120,7 +116,7 @@ pub fn gen_prn(prn_num: usize, bpsk_flag: bool, length: usize, epoch: isize) -> 
     output_code
 }
 
-#[allow(non_snake_case, dead_code)]
+#[allow(non_snake_case)]
 pub fn circ_corr<T: Copy + Into<f64>>(
     x: &DVector<T>,
     y: &DVector<T>,

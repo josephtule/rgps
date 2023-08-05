@@ -3,7 +3,7 @@ use crate::interpolation::*;
 use nalgebra::*;
 use std::f64::consts::*;
 
-#[allow(dead_code, unused_variables, non_snake_case)]
+#[allow(unused_variables, non_snake_case)]
 pub fn correlation_magnitude(
     test_delay: DVector<f64>,
     test_doppler: DVector<f64>,

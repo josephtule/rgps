@@ -2,7 +2,6 @@ use std::f64::consts::PI;
 
 use nalgebra::*;
 
-#[allow(unused_variables, dead_code)]
 pub fn wgs84(unit: usize) -> (f64, f64, f64, f64, f64) {
     if unit == 0 {
         // meter
@@ -26,7 +25,6 @@ pub fn wgs84(unit: usize) -> (f64, f64, f64, f64, f64) {
     // (semi-major axis, semi-minor axis, eccentricity, flattening, inverse flattening)
 }
 
-#[allow(dead_code)]
 pub fn ecef2geodetic(x: Vector3<f64>, unit: usize) -> Vector3<f64> {
     // returns lat long altitude in (deg, deg, unit)
     let maxiter = 1000 as usize;

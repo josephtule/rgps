@@ -1,6 +1,5 @@
 use nalgebra::*;
 
-#[allow(dead_code)]
 pub fn interp_n_points<T: Copy + Into<f64>>(
     x: &DVector<T>,
     y: &DVector<T>,
@@ -17,7 +16,6 @@ pub fn interp_n_points<T: Copy + Into<f64>>(
     (xi, yi)
 }
 
-#[allow(dead_code)]
 pub fn nn_interp<T: Copy + Into<f64>>(x: &DVector<T>, y: &DVector<T>, xi: f64) -> f64 {
     // good enough for prn interpolation
     // Find the closest value in 'x' to 'xi'
@@ -50,7 +48,6 @@ pub fn prev_interp<T: Copy + Into<f64>>(x: &DVector<T>, y: &DVector<T>, xi: f64)
     y[x.len() - 1].into()
 }
 
-#[allow(dead_code)]
 pub fn linspace<T: Copy + Into<f64>>(start: T, end: T, n: usize) -> DVector<f64> {
     let start_f64 = start.into();
     let end_f64 = end.into();
@@ -62,7 +59,6 @@ pub fn linspace<T: Copy + Into<f64>>(start: T, end: T, n: usize) -> DVector<f64>
     DVector::from_vec(values)
 }
 
-#[allow(dead_code)]
 pub fn range_vec<T: Copy + Into<f64>>(start: T, end: T, step: T) -> DVector<f64> {
     let mut step_val = step.into();
     if end.into() < start.into() {
