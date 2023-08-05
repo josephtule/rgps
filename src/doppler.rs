@@ -2,6 +2,7 @@ use crate::codes::*;
 use crate::interpolation::*;
 use nalgebra::*;
 use std::f64::consts::*;
+use std::time::Instant;
 
 #[allow(unused_variables, non_snake_case)]
 pub fn correlation_magnitude(
@@ -23,8 +24,8 @@ pub fn correlation_magnitude(
         let Q_interp = interp_Q(carrier_freq, test_doppler[i], &time, &prn_code_interp);
         let (corr_I, _) = circ_corr(&received_signal, &I_interp, 1.);
         let (corr_Q, _) = circ_corr(&received_signal, &Q_interp, 1.);
-        I_cc.set_column(i, &corr_I); // Assuming circcorr returns DVector<f64>
-        Q_cc.set_column(i, &corr_Q); // Assuming circcorr returns DVector<f64>
+        I_cc.set_column(i, &corr_I);
+        Q_cc.set_column(i, &corr_Q);
     }
 
     I_cc.map(|x| x * x) + Q_cc.map(|x| x * x)

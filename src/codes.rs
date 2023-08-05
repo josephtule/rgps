@@ -1,5 +1,6 @@
 use nalgebra::*;
 use rustfft::{num_complex::Complex, FftPlanner};
+use std::time::Instant;
 
 pub fn gold_gen(ic: DVector<i32>, taps: Vec<usize>) -> DMatrix<i32> {
     let n = ic.len();
