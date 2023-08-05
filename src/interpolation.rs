@@ -81,39 +81,3 @@ pub fn range_vec<T: Copy + Into<f64>>(start: T, end: T, step: T) -> DVector<f64>
 
     DVector::from_vec(values)
 }
-
-#[allow(non_snake_case)]
-pub fn interp_I(
-    carrier: f64,
-    doppler_value: f64,
-    time: &DVector<f64>,
-    interp_prn: &DVector<f64>,
-) -> DVector<f64> {
-    let factor = 2.0 * PI * (carrier + doppler_value);
-
-    let result: Vec<f64> = time
-        .iter()
-        .zip(interp_prn.iter())
-        .map(|(&t, &prn)| (factor * t).cos() * prn)
-        .collect();
-
-    DVector::from_vec(result)
-}
-
-#[allow(non_snake_case)]
-pub fn interp_Q(
-    carrier: f64,
-    doppler_value: f64,
-    time: &DVector<f64>,
-    interp_prn: &DVector<f64>,
-) -> DVector<f64> {
-    let factor = 2.0 * PI * (carrier + doppler_value);
-
-    let result: Vec<f64> = time
-        .iter()
-        .zip(interp_prn.iter())
-        .map(|(&t, &prn)| (factor * t).sin() * prn)
-        .collect();
-
-    DVector::from_vec(result)
-}

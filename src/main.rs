@@ -13,11 +13,12 @@ use interpolation::*;
 #[allow(unused_variables, non_snake_case)]
 fn main() {
     let fs = 10e6; // sample frequency, Hz
-    let fc = 1575.42e6; // L1 carrier frequency, Hz
+    let fl1 = 1575.42e6; // L1 carrier frequency, Hz
+    let fl2 = 1227.6e6; // L2 carrier frequency, Hz
     let fi = 2.716e6; // intermediate carrier frequency, Hz
     let Ts = 1. / fs; // sample time, sec
-    let Td = 1e-3; // message time (1023 chips), sec
-    let Ts_vec = linspace(0., 1e-3, (1e-3 * fs) as usize);
+    let Td = 1e-3; // datalength (1023 chips), sec
+    let Ts_vec = linspace(0., Td, (Td * fs) as usize);
     let received_signal = read_bin_to_dvector("gpstestdata.bin")
         .expect("Error in reading bin or converting to vector");
 

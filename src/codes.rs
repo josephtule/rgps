@@ -42,7 +42,7 @@ pub fn cycle_add(g1: DVector<i32>, g2: DMatrix<i32>, prn_taps: Vec<usize>) -> DV
 }
 
 #[allow(dead_code)]
-pub fn gen_prn(prn_num: usize, bpsk_flag: bool) -> DVector<i32> {
+pub fn gen_prn(prn_num: usize, bpsk_flag: bool, length: usize) -> DVector<i32> {
     let prn_lib = [
         vec![2, 6],
         vec![3, 7],
@@ -96,7 +96,19 @@ pub fn gen_prn(prn_num: usize, bpsk_flag: bool) -> DVector<i32> {
         bpsk_map(&mut prn_code)
     };
 
-    prn_code
+    if length < 1023 {
+        prn_code
+    } else {
+        // convert to a Vec<i32> for the use of .cycle()
+        let prn_code_vec: Vec<i32> = prn_code.iter().copied().collect();
+        // create an infinite repeating iterator, take the needed elements, and collect back to a Vec
+        let repeated_prn_code_vec: Vec<i32> =
+            prn_code_vec.into_iter().cycle().take(length).collect();
+        // convert back to a DVector<i32>
+        let repeated_prn_code = DVector::from_vec(repeated_prn_code_vec);
+
+        repeated_prn_code
+    }
 }
 
 #[allow(non_snake_case, dead_code)]
