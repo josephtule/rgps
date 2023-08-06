@@ -40,21 +40,21 @@ fn main() {
     //
     // let test = gen_prn(1, true, 1050, -10);
     // println!("{}", test.fixed_rows::<10>(0));
+    //
+    // let r1 = Vector3::new(-2694685.473, -4293642.366, 3857878.924);
+    // let r2 = Vector3::new(-2694892.460, -4293083.225, 3858353.437);
+    // let r1_lla = ecef2geodetic(r1, 0);
+    // let r2_lla = ecef2geodetic(r2, 0);
+    // let r1_reverse = geodetic2ecef(r1_lla, 0);
+    //
+    // println!("Runway length {}", r1 - r1_reverse);
+    // let gps_time = 0.0;
+    // let header = rinex2_nav_header("brdc2180.23n").expect("oops, could not read file");
+    // println!("{:?}", header);
 
-    let r1 = Vector3::new(-2694685.473, -4293642.366, 3857878.924);
-    let r2 = Vector3::new(-2694892.460, -4293083.225, 3858353.437);
-    let r1_lla = ecef2geodetic(r1, 0);
-    let r2_lla = ecef2geodetic(r2, 0);
-    let r1_reverse = geodetic2ecef(r1_lla, 0);
+    rinex2_nav_sv("brdc2180.23n", 12, 0.0).expect("oops");
+
     println!("{:?}", Instant::now() - start);
-
-    println!("Runway length {}", r1 - r1_reverse);
-
-    let data = File::open("brdc2180.23n").unwrap();
-    let gps_time = 0.0;
-    let reader = BufReader::new(data);
-    let (header, satellites) =
-        parse_rinex_nav(reader, gps_time, &[1]).expect("failed to read file");
 }
 
 fn read_bin_to_dvector(filename: &str) -> Result<DVector<f64>, std::io::Error> {
