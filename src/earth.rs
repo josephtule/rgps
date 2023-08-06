@@ -78,3 +78,35 @@ pub fn ecef2geodetic(x: Vector3<f64>, unit: usize) -> Vector3<f64> {
     }
     Vector3::new(lat * rad2deg, long, h)
 }
+
+pub fn geodetic2ecef(lla: Vector3<f64>, unit: usize) -> Vector3<f64> {
+    let (a, _, e, _, _) = wgs84(unit);
+    let e2 = e * e;
+    let deg2rad = PI / 180.;
+
+    let lat = lla[0];
+    let long = lla[1];
+    let h = lla[2];
+
+    let clat = (lat * deg2rad).cos();
+    let slat = (lat * deg2rad).sin();
+    let clong = (long * deg2rad).cos();
+    let slong = (long * deg2rad).sin();
+
+    let r_n = a / (1. - e2 * slat * slat).sqrt();
+    let x = Vector3::new(
+        (r_n + h) * clat * clong,
+        (r_n + h) * clat * slong,
+        (r_n * (1. - e2) + h) * slat,
+    );
+
+    if lat < -90. || lat > 90. || long < -180. || long > 360. {
+        panic!("WGS Lat or Long is out of range");
+    }
+
+    x
+}
+
+// pub fn gps_constants(unit: usize) {
+//
+// }
