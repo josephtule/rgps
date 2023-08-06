@@ -25,6 +25,14 @@ pub fn wgs84(unit: usize) -> (f64, f64, f64, f64, f64) {
     // (semi-major axis, semi-minor axis, eccentricity, flattening, inverse flattening)
 }
 
+pub fn earth_constants(unit: usize) -> (f64, f64) {
+    if unit == 0 {
+        (3.986004418e14, 7.2921151467e-5)
+    } else {
+        (3.986004418e5, 7.2921151467e-5)
+    }
+}
+
 pub fn ecef2geodetic(x: Vector3<f64>, unit: usize) -> Vector3<f64> {
     // returns lat long altitude in (deg, deg, unit)
     let maxiter = 1000 as usize;
