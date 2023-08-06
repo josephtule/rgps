@@ -63,8 +63,60 @@ pub struct SatelliteData {
 #[allow(unused_variables)]
 impl SatelliteData {
     pub fn propagate(&mut self, time_vec: DVector<f64>) {
+        // use to propagate gps satellites based on gps time
         // calculates trajectory in ECEF
         self.t = time_vec;
+        let (mu, earth_rot) = earth_constants(0);
+        let a = self.sqrt_a.powi(2);
+        let n0 = (mu / a.powi(3)).sqrt();
+        let n = n0 + self.delta_n;
+        let mut mk = &self.t.clone() * n;
+        mk = mk.add_scalar(self.m0);
+
+        // calculate eccentric anomalies
+        let e = self.e;
+        let mut ecc_anomk = dvector![];
+        for i in 0..mk.len() {
+            ecc_anomk[i] = approx_ecc_anom(mk[i], e);
+        }
+        // calculate true anomalies
+        let vk = ecc_anomk.map(|x| 2.0 * ((1.0 + e) / (1.0 - e)).sqrt() * (x / 2.0).tan());
+
+        // calculate argument of latitudes
+        let latk = vk.add_scalar(self.aop);
+        let s2latk = latk.map(|x| (2. * x).sin());
+        let c2latk = latk.map(|x| (2. * x).sin());
+
+        // calculate perturbations for arg of lat, radius, and inclination
+        let duk = self.cus * &s2latk + self.cuc * &c2latk;
+        let drk = self.crs * &s2latk + self.crs * &c2latk;
+        let dik = self.cis * &s2latk + self.cic * &c2latk;
+        let uk = latk + duk;
+        let temp = ecc_anomk.map(|x| 1. - e * x.cos());
+        let rk = a * temp + drk;
+        let ik = dik.add_scalar(self.i0) + self.idot * &self.t;
+
+        // calculate perifocal positions
+        let xkp = rk.component_mul(&uk.map(|x| x.cos()));
+        let ykp = rk.component_mul(&uk.map(|x| x.sin()));
+
+        // calculate omegas
+        let omk =
+            ((self.raandot + earth_rot) * &self.t).add_scalar(self.raan - earth_rot * self.toe);
+
+        let comk = omk.map(|x| x.cos());
+        let somk = omk.map(|x| x.sin());
+        let cik = ik.map(|x| x.cos());
+        let sik = ik.map(|x| x.sin());
+        // calculate position in ecef
+        self.x = xkp.component_mul(&comk) - ykp.component_mul(&cik.component_mul(&somk));
+        self.y = xkp.component_mul(&somk) + ykp.component_mul(&cik.component_mul(&comk));
+        self.z = ykp.component_mul(&sik);
+    }
+    pub fn propagate_est(&mut self, arr_time: DVector<f64>, prange_time: DVector<f64>) {
+        // used to propagate based on receiver time and psuedorange time
+        // calculates trajectory in ECEF
+        self.t = arr_time - prange_time.add_scalar(-self.toe);
         let (mu, earth_rot) = earth_constants(0);
         let a = self.sqrt_a.powi(2);
         let n0 = (mu / a.powi(3)).sqrt();
