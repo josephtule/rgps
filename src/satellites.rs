@@ -7,7 +7,7 @@ use std::io::copy;
 use std::io::{BufRead, BufReader, Error, Read};
 use std::time::{Duration, SystemTime};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct RinexNavHeader {
     ion_alpha: [f64; 4],
     ion_beta: [f64; 4],
@@ -15,7 +15,7 @@ pub struct RinexNavHeader {
     leap_seconds: i32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SatelliteData {
     prn: i32,
     year: i32,
@@ -37,14 +37,14 @@ pub struct SatelliteData {
     sqrt_a: f64,
     toe: f64,
     cic: f64,
-    omega0: f64,
+    raan: f64,
     cis: f64,
     i0: f64,
     crc: f64,
-    omega: f64,
-    omega_dot: f64,
+    aop: f64,
+    raandot: f64,
     idot: f64,
-    codes_on_l2_channel: f64,
+    l2_codes: f64,
     gps_week: f64,
     l2_p_data_flag: f64,
     sv_accuracy: f64,
@@ -56,23 +56,345 @@ pub struct SatelliteData {
 }
 
 #[allow(unused_variables)]
-pub fn rinex2_nav_sv(filename: &str, prn: usize, gps_time: f64) -> Result<(), Error> {
-    // gps_time is time of week
+pub fn rinex2_nav_sv(filename: &str, prn: usize, gps_time: f64) -> Result<SatelliteData, Error> {
+    // gps_time is time (sec) of week
     let file = File::open(filename)?;
-    let reader = BufReader::new(file);
+    let mut reader = BufReader::new(file).lines();
     let prn_string = format!("{: >2}", prn);
-    println!("{}", prn_string);
-    for line in reader.lines() {
-        let line = line?;
-        if line[0..=1] == prn_string {
-            println!("found first instance of prn {} ephemeris data", prn);
 
-            if gps_time == 0. {
-                break;
-            } // TODO: break if gps time is within two hours of transmission time
-        };
+    let mut iode = 0.;
+    let mut crs = 0.;
+    let mut delta_n = 0.;
+    let mut m0 = 0.;
+    let mut cuc = 0.;
+    let mut e = 0.;
+    let mut cus = 0.;
+    let mut sqrt_a = 0.;
+    let mut toe = 0.;
+    let mut cic = 0.;
+    let mut raan = 0.;
+    let mut cis = 0.;
+    let mut i0 = 0.;
+    let mut crc = 0.;
+    let mut aop = 0.;
+    let mut raandot = 0.;
+    let mut idot = 0.;
+    let mut l2_codes = 0.;
+    let mut gps_week = 0.;
+    let mut l2_p_data_flag = 0.;
+    let mut sv_accuracy = 0.;
+    let mut sv_health = 0.;
+    let mut tgd = 0.;
+    let mut iodc = 0.;
+    let mut transmission_time = 0.;
+    let mut fit_interval = 0.;
+
+    let mut sat = SatelliteData {
+        prn: prn as i32,
+        year: 0,
+        day: 0,
+        month: 0,
+        hour: 0,
+        minute: 0,
+        second: 0.,
+        sv_clock_bias: 0.,
+        sv_clock_drift: 0.,
+        sv_clock_drift_rate: 0.,
+        iode,
+        crs,
+        delta_n,
+        m0,
+        cuc,
+        e,
+        cus,
+        sqrt_a,
+        toe,
+        cic,
+        cis,
+        i0,
+        crc,
+        aop,
+        raan,
+        raandot,
+        idot,
+        l2_p_data_flag,
+        l2_codes,
+        gps_week,
+        sv_accuracy,
+        sv_health,
+        tgd,
+        iodc,
+        transmission_time,
+        fit_interval,
+    };
+
+    let mut found_prn = false;
+
+    while let Some(line_result) = reader.next() {
+        let line = line_result?;
+        if line[0..=1] == prn_string {
+            found_prn = true;
+        }
+        if found_prn {
+            // line 0
+            let tokens = [
+                &line[3..=4],   // year
+                &line[5..=7],   // month
+                &line[8..=10],  // day
+                &line[11..=13], // hour
+                &line[14..=16], // minute
+                &line[17..=21], // second
+                &line[22..=40], // SV clock bias
+                &line[41..=59], // SV clock drift
+                &line[60..=78], // SV clock drift rate
+            ];
+
+            let year = tokens[0].replace(" ", "").parse::<i32>().unwrap();
+            let month = tokens[1].replace(" ", "").parse::<i32>().unwrap();
+            let day = tokens[2].replace(" ", "").parse::<i32>().unwrap();
+            let hour = tokens[3].replace(" ", "").parse::<i32>().unwrap();
+            let minute = tokens[4].replace(" ", "").parse::<i32>().unwrap();
+            let second = tokens[5].replace(" ", "").parse::<f64>().unwrap();
+            let sv_clock_bias = tokens[6]
+                .replace(" ", "")
+                .replace("D", "e")
+                .parse::<f64>()
+                .unwrap();
+            let sv_clock_drift = tokens[7]
+                .replace(" ", "")
+                .replace("D", "e")
+                .parse::<f64>()
+                .unwrap();
+            let sv_clock_drift_rate = tokens[8]
+                .replace(" ", "")
+                .replace("D", "e")
+                .parse::<f64>()
+                .unwrap();
+
+            if let Some(line_result) = reader.next() {
+                // line 1
+                let line = line_result?;
+                let tokens = [&line[3..22], &line[22..41], &line[41..60], &line[60..79]];
+                iode = tokens[0]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                crs = tokens[1]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                delta_n = tokens[2]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                m0 = tokens[3]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+            }
+            if let Some(line_result) = reader.next() {
+                // line 2
+                let line = line_result?;
+                let tokens = [&line[3..22], &line[22..41], &line[41..60], &line[60..79]];
+                cuc = tokens[0]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                e = tokens[1]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                cus = tokens[2]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                sqrt_a = tokens[3]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+            }
+
+            if let Some(line_result) = reader.next() {
+                // line 3
+                let line = line_result?;
+                let tokens = [&line[3..22], &line[22..41], &line[41..60], &line[60..79]];
+                toe = tokens[0]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                cic = tokens[1]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                raan = tokens[2]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                cis = tokens[3]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+            }
+
+            if let Some(line_result) = reader.next() {
+                // line 4
+                let line = line_result?;
+                let tokens = [&line[3..22], &line[22..41], &line[41..60], &line[60..79]];
+                i0 = tokens[0]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                crc = tokens[1]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                aop = tokens[2]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                raandot = tokens[3]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+            }
+
+            if let Some(line_result) = reader.next() {
+                // line 5
+                let line = line_result?;
+                let tokens = [&line[3..22], &line[22..41], &line[41..60], &line[60..79]];
+                idot = tokens[0]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                l2_codes = tokens[1]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                gps_week = tokens[2]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                l2_p_data_flag = tokens[3]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+            }
+
+            if let Some(line_result) = reader.next() {
+                // line 2
+                let line = line_result?;
+                let tokens = [&line[3..22], &line[22..41], &line[41..60], &line[60..79]];
+                sv_accuracy = tokens[0]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                sv_health = tokens[1]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                tgd = tokens[2]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                iodc = tokens[3]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+            }
+
+            if let Some(line_result) = reader.next() {
+                // line 7
+                let line = line_result?;
+                let tokens = [&line[3..22], &line[22..41], &line[41..60], &line[60..79]];
+                transmission_time = tokens[0]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+                fit_interval = tokens[1]
+                    .replace(" ", "")
+                    .replace("D", "e")
+                    .parse::<f64>()
+                    .unwrap();
+            }
+            // change sat no matter what, in gps_time is outside of of updates
+            sat = SatelliteData {
+                prn: prn as i32,
+                year,
+                day,
+                month,
+                hour,
+                minute,
+                second,
+                sv_clock_bias,
+                sv_clock_drift,
+                sv_clock_drift_rate,
+                iode,
+                crs,
+                delta_n,
+                m0,
+                cuc,
+                e,
+                cus,
+                sqrt_a,
+                toe,
+                cic,
+                cis,
+                i0,
+                crc,
+                aop,
+                raan,
+                raandot,
+                idot,
+                l2_p_data_flag,
+                l2_codes,
+                gps_week,
+                sv_accuracy,
+                sv_health,
+                tgd,
+                iodc,
+                transmission_time,
+                fit_interval,
+            };
+
+            if gps_time == 0. || (gps_time < (2. * 60. * 60. + toe) && gps_time >= toe) {
+                // gps_time is within two hours of toe
+                break; // exit loop once correct epoch is found
+            } else {
+                found_prn = false;
+                continue;
+            }
+        }
+        if gps_time > 24. * 60. * 60. {
+            panic!("GPS time is not within the day of the file given.")
+        }
     }
-    Ok(())
+
+    Ok(sat)
 }
 
 pub fn rinex2_nav_header(filename: &str) -> Result<RinexNavHeader, Error> {

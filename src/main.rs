@@ -52,8 +52,8 @@ fn main() {
     // let header = rinex2_nav_header("brdc2180.23n").expect("oops, could not read file");
     // println!("{:?}", header);
 
-    rinex2_nav_sv("brdc2180.23n", 12, 0.0).expect("oops");
-
+    let sat_data = rinex2_nav_sv("brdc2180.23n", 1, 70000.).expect("oops");
+    println!("{:?}", sat_data);
     println!("{:?}", Instant::now() - start);
 }
 
